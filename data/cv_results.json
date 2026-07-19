@@ -1,0 +1,34 @@
+{
+  "Linear Regression": {
+    "MAE": 11.44,
+    "MAE_sd": 0.26,
+    "RMSE": 14.55,
+    "RMSE_sd": 0.45,
+    "R2": 0.215,
+    "R2_sd": 0.095
+  },
+  "Random Forest": {
+    "MAE": 11.18,
+    "MAE_sd": 0.35,
+    "RMSE": 14.34,
+    "RMSE_sd": 0.53,
+    "R2": 0.238,
+    "R2_sd": 0.097
+  },
+  "Gradient Boosting": {
+    "MAE": 11.26,
+    "MAE_sd": 0.36,
+    "RMSE": 14.31,
+    "RMSE_sd": 0.59,
+    "R2": 0.242,
+    "R2_sd": 0.088
+  },
+  "Baseline (Province)": {
+    "MAE": 11.38,
+    "MAE_sd": 0,
+    "RMSE": 14.94,
+    "RMSE_sd": 0,
+    "R2": 0.047,
+    "R2_sd": 0
+  }
+}

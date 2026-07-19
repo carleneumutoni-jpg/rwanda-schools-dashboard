@@ -1,0 +1,62 @@
+[
+  {
+    "feature": "Average classroom size",
+    "standardized_coef": -6.86,
+    "shap": 3.679
+  },
+  {
+    "feature": "Primary-focused status",
+    "standardized_coef": 3.271,
+    "shap": 0.684
+  },
+  {
+    "feature": "Urban location",
+    "standardized_coef": 2.522,
+    "shap": 1.358
+  },
+  {
+    "feature": "Province: North",
+    "standardized_coef": -2.591,
+    "shap": 1.079
+  },
+  {
+    "feature": "Number of leader records",
+    "standardized_coef": 1.602,
+    "shap": 0.329
+  },
+  {
+    "feature": "Province: West",
+    "standardized_coef": -1.432,
+    "shap": 0.359
+  },
+  {
+    "feature": "Leadership marks",
+    "standardized_coef": 1.085,
+    "shap": 0.904
+  },
+  {
+    "feature": "Double-shift status",
+    "standardized_coef": 0.619,
+    "shap": 0.092
+  },
+  {
+    "feature": "Number of education levels",
+    "standardized_coef": 0.59,
+    "shap": 0.538
+  },
+  {
+    "feature": "Internet access",
+    "standardized_coef": 0.459,
+    "shap": 0.044
+  },
+  {
+    "feature": "Electricity access",
+    "standardized_coef": -0.363,
+    "shap": 0.109
+  },
+  {
+    "feature": "Computer access",
+    "standardized_coef": -0.002,
+    "shap": 0.151
+  }
+]
