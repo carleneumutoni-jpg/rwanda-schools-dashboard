@@ -242,38 +242,47 @@ elif page == "District Funding Simulator":
         pad = max((hi - lo) * pad_ratio, 1.0)
         lo, hi = lo - pad, hi + pad
         if lo_clip is not None:
-            lo = max(lo, lo_clip)
+            lo = max(lo, float(lo_clip))
         if hi_clip is not None:
-            hi = min(hi, hi_clip)
-        return round(lo, 1), round(hi, 1)
+            hi = min(hi, float(hi_clip))
+        lo, hi = round(float(lo), 1), round(float(hi), 1)
+        if lo >= hi:  # guard against a degenerate (zero-width) slider
+            hi = lo + 1.0
+        return lo, hi
+
+    def clamp(value, lo, hi):
+        # Guards against a district's own value landing a hair outside its
+        # own rounded slider bounds (can happen from independent rounding
+        # in build_data.py vs. here), which Streamlit's slider rejects.
+        return float(min(max(value, lo), hi))
 
     c1, c2 = st.columns(2)
     with c1:
         lo, hi = slider_bounds("avg_classroom_size", lo_clip=20)
         avg_classroom_size = st.slider("Avg. classroom size (pupils/class)", lo, hi,
-                                        float(baseline_row["avg_classroom_size"]), step=0.5)
+                                        clamp(float(baseline_row["avg_classroom_size"]), lo, hi), step=0.5)
         st.caption("Rwanda's national standard is 46:1.")
 
         lo, hi = slider_bounds("pct_double_shift", lo_clip=0, hi_clip=100)
         pct_double_shift = st.slider("% schools on double shift", lo, hi,
-                                      float(baseline_row["pct_double_shift"]), step=1.0)
+                                      clamp(float(baseline_row["pct_double_shift"]), lo, hi), step=1.0)
 
         lo, hi = slider_bounds("pct_internet", lo_clip=0, hi_clip=100)
         pct_internet = st.slider("% schools with internet access", lo, hi,
-                                  float(baseline_row["pct_internet"]), step=1.0)
+                                  clamp(float(baseline_row["pct_internet"]), lo, hi), step=1.0)
 
         lo, hi = slider_bounds("pct_computer", lo_clip=0, hi_clip=100)
         pct_computer = st.slider("% schools with computer access", lo, hi,
-                                  float(baseline_row["pct_computer"]), step=1.0)
+                                  clamp(float(baseline_row["pct_computer"]), lo, hi), step=1.0)
 
     with c2:
         lo, hi = slider_bounds("avg_leadership_marks", lo_clip=0, hi_clip=100)
         avg_leadership_marks = st.slider("Avg. leadership evaluation marks", lo, hi,
-                                          float(baseline_row["avg_leadership_marks"]), step=0.5)
+                                          clamp(float(baseline_row["avg_leadership_marks"]), lo, hi), step=0.5)
 
         lo, hi = slider_bounds("avg_leader_records", lo_clip=1.0, hi_clip=2.0)
         avg_leader_records = st.slider("Avg. leadership team completeness (1=Head only, 2=Head+Deputy)", lo, hi,
-                                        float(baseline_row["avg_leader_records"]), step=0.05)
+                                        clamp(float(baseline_row["avg_leader_records"]), lo, hi), step=0.05)
 
         st.markdown("**Fixed context (not funding-adjustable):**")
         st.text(f"Province: {baseline_row['province']}")
