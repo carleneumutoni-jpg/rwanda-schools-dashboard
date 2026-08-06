@@ -1,0 +1,10 @@
+{
+  "in_sample_accuracy": 0.674,
+  "in_sample_low_precision": 0.92,
+  "oof_accuracy": 0.629,
+  "oof_low_precision": 0.38,
+  "oof_low_recall": 0.05,
+  "binary_pr_auc": 0.302,
+  "binary_roc_auc": 0.61,
+  "binary_baseline_pr_auc": 0.231
+}
