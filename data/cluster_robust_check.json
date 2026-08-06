@@ -1,0 +1,14 @@
+{
+  "r2": 0.281,
+  "n_vars_changed_significance": 0,
+  "n_vars_tested": 17,
+  "still_significant_after_clustering": [
+    "Average classroom size",
+    "Primary-focused status",
+    "Leadership marks",
+    "Number of leader records",
+    "Province: North",
+    "Province: West",
+    "Urban location"
+  ]
+}

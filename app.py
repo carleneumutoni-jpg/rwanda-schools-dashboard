@@ -1,7 +1,10 @@
 import streamlit as st
 import pandas as pd
 import json
+import joblib
+import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 
 st.set_page_config(
     page_title="Rwanda Primary School Performance Dashboard",
@@ -20,14 +23,27 @@ def load_data():
         tiering = json.load(f)
     with open("data/ablation.json") as f:
         ablation = json.load(f)
-    return schools, cv_results, feature_importance, tiering, ablation
+    district_baselines = pd.read_csv("data/district_baselines.csv")
+    with open("data/district_model_meta.json") as f:
+        district_meta = json.load(f)
+    with open("data/cluster_robust_check.json") as f:
+        cluster_check = json.load(f)
+    return (schools, cv_results, feature_importance, tiering, ablation,
+            district_baselines, district_meta, cluster_check)
 
-schools, cv_results, feature_importance, tiering, ablation = load_data()
+@st.cache_resource
+def load_district_model():
+    return joblib.load("data/district_model.joblib")
+
+(schools, cv_results, feature_importance, tiering, ablation,
+ district_baselines, district_meta, cluster_check) = load_data()
+district_model = load_district_model()
 
 st.sidebar.title("Rwanda Primary Schools")
 page = st.sidebar.radio(
     "Navigate",
     ["Overview", "What Predicts Performance", "Explore by School",
+     "District Funding Simulator",
      "Model Performance & Limitations", "Policy Recommendations"],
 )
 st.sidebar.markdown("---")
@@ -115,7 +131,9 @@ elif page == "What Predicts Performance":
             "Surprisingly **weak, mostly non-significant effects** once classroom "
             "size and location are accounted for. This does not mean digital "
             "infrastructure is unimportant - only that, in this data, it does not "
-            "explain much *additional* variation in pass rates."
+            "explain much *additional* variation in pass rates. (Electricity access "
+            "is also ~100% across nearly all schools in this dataset, leaving little "
+            "variation to learn from either way.)"
         )
 
     st.markdown("---")
@@ -182,7 +200,157 @@ elif page == "Explore by School":
     st.download_button("Download filtered data as CSV", csv, "filtered_schools.csv", "text/csv")
 
 # ============================================================
-# PAGE 4: MODEL PERFORMANCE & LIMITATIONS
+# PAGE 4: DISTRICT FUNDING SIMULATOR  (NEW)
+# ============================================================
+elif page == "District Funding Simulator":
+    st.title("District Funding Simulator")
+    st.markdown(
+        "Estimate how district-average pass rates would change if infrastructure, "
+        "leadership, or classroom-size levers were shifted through funding decisions."
+    )
+
+    st.warning(
+        f"**About this model:** trained on all {district_meta['n_districts']} districts' "
+        f"aggregate data and honestly tested with leave-one-out cross-validation "
+        f"(each district predicted using a model that never saw it). "
+        f"**R2 = {district_meta['loocv_r2']}, average error = \u00b1{district_meta['loocv_mae']} points** "
+        f"(vs. \u00b1{district_meta['baseline_mae_national_mean']} points for just guessing the national average). "
+        "This is real but modest signal - use it to compare directions and rough "
+        "magnitudes across funding options, not as a precise forecast."
+    )
+
+    st.markdown("---")
+    st.subheader("1. Start from a district's current numbers")
+    district_list = sorted(district_baselines["district"].unique())
+    selected_district = st.selectbox("Select a district", district_list)
+    baseline_row = district_baselines[district_baselines["district"] == selected_district].iloc[0]
+
+    st.caption(
+        f"{selected_district} ({baseline_row['province']} Province) has "
+        f"{int(baseline_row['n_schools'])} schools and a current actual average "
+        f"pass rate of **{baseline_row['actual_pass_rate']}%**."
+    )
+
+    st.markdown("---")
+    st.subheader("2. Adjust funding levers")
+    st.caption("Sliders start at this district's real current values. Move them to simulate a funding scenario.")
+
+    ranges = district_meta["feature_ranges"]
+
+    def slider_bounds(col, pad_ratio=0.15, lo_clip=None, hi_clip=None):
+        lo, hi = ranges[col]["min"], ranges[col]["max"]
+        pad = max((hi - lo) * pad_ratio, 1.0)
+        lo, hi = lo - pad, hi + pad
+        if lo_clip is not None:
+            lo = max(lo, lo_clip)
+        if hi_clip is not None:
+            hi = min(hi, hi_clip)
+        return round(lo, 1), round(hi, 1)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        lo, hi = slider_bounds("avg_classroom_size", lo_clip=20)
+        avg_classroom_size = st.slider("Avg. classroom size (pupils/class)", lo, hi,
+                                        float(baseline_row["avg_classroom_size"]), step=0.5)
+        st.caption("Rwanda's national standard is 46:1.")
+
+        lo, hi = slider_bounds("pct_double_shift", lo_clip=0, hi_clip=100)
+        pct_double_shift = st.slider("% schools on double shift", lo, hi,
+                                      float(baseline_row["pct_double_shift"]), step=1.0)
+
+        lo, hi = slider_bounds("pct_internet", lo_clip=0, hi_clip=100)
+        pct_internet = st.slider("% schools with internet access", lo, hi,
+                                  float(baseline_row["pct_internet"]), step=1.0)
+
+        lo, hi = slider_bounds("pct_computer", lo_clip=0, hi_clip=100)
+        pct_computer = st.slider("% schools with computer access", lo, hi,
+                                  float(baseline_row["pct_computer"]), step=1.0)
+
+    with c2:
+        lo, hi = slider_bounds("avg_leadership_marks", lo_clip=0, hi_clip=100)
+        avg_leadership_marks = st.slider("Avg. leadership evaluation marks", lo, hi,
+                                          float(baseline_row["avg_leadership_marks"]), step=0.5)
+
+        lo, hi = slider_bounds("avg_leader_records", lo_clip=1.0, hi_clip=2.0)
+        avg_leader_records = st.slider("Avg. leadership team completeness (1=Head only, 2=Head+Deputy)", lo, hi,
+                                        float(baseline_row["avg_leader_records"]), step=0.05)
+
+        st.markdown("**Fixed context (not funding-adjustable):**")
+        st.text(f"Province: {baseline_row['province']}")
+        st.text(f"% urban schools: {baseline_row['pct_urban']}%")
+        st.text("% on-grid electricity: ~100% (already universal, not a useful lever)")
+
+    pct_urban = float(baseline_row["pct_urban"])  # fixed, not editable
+
+    # ---- Predict ----
+    feat_order = district_meta["feature_order"]
+    input_row = pd.DataFrame([{
+        "avg_classroom_size": avg_classroom_size,
+        "pct_double_shift": pct_double_shift,
+        "pct_internet": pct_internet,
+        "pct_computer": pct_computer,
+        "avg_leadership_marks": avg_leadership_marks,
+        "avg_leader_records": avg_leader_records,
+        "pct_urban": pct_urban,
+    }])[feat_order]
+
+    predicted = float(district_model.predict(input_row)[0])
+    predicted = max(0.0, min(100.0, predicted))
+    mae = district_meta["loocv_mae"]
+
+    # Extrapolation guardrail: flag if any input falls outside the range of
+    # districts the model was actually trained on
+    out_of_range = []
+    label_map = {
+        "avg_classroom_size": "Avg. classroom size", "pct_double_shift": "% double shift",
+        "pct_internet": "% internet", "pct_computer": "% computer access",
+        "avg_leadership_marks": "Avg. leadership marks", "avg_leader_records": "Leadership team completeness",
+    }
+    for col, val in input_row.iloc[0].items():
+        if col == "pct_urban":
+            continue
+        r = ranges[col]
+        if val < r["min"] or val > r["max"]:
+            out_of_range.append(f"{label_map.get(col, col)} ({val:g}, observed range {r['min']:g}\u2013{r['max']:g})")
+
+    st.markdown("---")
+    st.subheader("3. Estimated result")
+
+    r1, r2_, r3 = st.columns(3)
+    r1.metric("Current actual pass rate", f"{baseline_row['actual_pass_rate']}%")
+    r2_.metric(
+        "Scenario estimate", f"{predicted:.1f}%",
+        delta=f"{predicted - baseline_row['actual_pass_rate']:+.1f} pts vs. current",
+    )
+    r3.metric("Uncertainty range", f"{max(0,predicted-mae):.1f}% \u2013 {min(100,predicted+mae):.1f}%")
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=["Current actual", "Scenario estimate"],
+        y=[baseline_row["actual_pass_rate"], predicted],
+        error_y=dict(type="data", array=[0, mae], visible=True),
+        marker_color=["#6c9bd1", "#1f4e8c"],
+    ))
+    fig.update_layout(yaxis_title="Pass rate (%)", yaxis_range=[0, 100], height=380)
+    st.plotly_chart(fig, use_container_width=True, key="district_scenario_chart")
+
+    if out_of_range:
+        st.warning(
+            "**Extrapolation notice:** this scenario goes beyond what any district in "
+            "the training data actually looks like, for: " + "; ".join(out_of_range) + ". "
+            "The model is estimating outside its validated range here, so treat this "
+            "particular estimate as a rough directional signal only, not the "
+            "\u00b1{:.1f}-point accuracy quoted above.".format(mae)
+        )
+
+    st.caption(
+        "This estimate reflects a district-level pattern, not a guarantee for any "
+        "individual school within the district. Use alongside local knowledge before "
+        "committing funding."
+    )
+
+# ============================================================
+# PAGE 5: MODEL PERFORMANCE & LIMITATIONS
 # ============================================================
 elif page == "Model Performance & Limitations":
     st.title("How Reliable Is This Model?")
@@ -238,6 +406,44 @@ elif page == "Model Performance & Limitations":
     )
 
     st.markdown("---")
+    st.subheader("Robustness Check: Do the Key Predictors Hold Up?")
+    st.markdown(
+        "Schools within the same district aren't fully independent of each other - "
+        "they share the same local administration, funding environment, and "
+        "community context. Ordinary statistical tests assume independence, which "
+        "can make effects look more certain than they really are. To check this, "
+        "the model's coefficients were re-tested with **standard errors clustered "
+        "by district**, which is a stricter, more conservative test."
+    )
+    cr1, cr2 = st.columns(2)
+    cr1.metric("Variables tested", cluster_check["n_vars_tested"])
+    cr2.metric("Variables that lost significance after clustering",
+               cluster_check["n_vars_changed_significance"])
+    st.success(
+        "**Result: none of the key predictors lost significance.** Classroom size, "
+        "leadership marks, leadership-team completeness, primary-focused status, "
+        "urban location, and the North/West province effects all remained "
+        "statistically significant even under this stricter test - meaning these "
+        "aren't artifacts of schools within the same district being correlated "
+        "with each other."
+    )
+
+    st.markdown("---")
+    st.subheader("District Funding Simulator - Model Details")
+    st.markdown(
+        f"- Trained on **{district_meta['n_districts']} districts'** aggregated data "
+        f"(one row per district, averaged across its schools).\n"
+        f"- Validated with **leave-one-out cross-validation**: R2 = {district_meta['loocv_r2']}, "
+        f"MAE = \u00b1{district_meta['loocv_mae']} points (baseline of guessing the national "
+        f"average: \u00b1{district_meta['baseline_mae_national_mean']} points).\n"
+        "- District identity itself is **not** used as an input - only funding-relevant levers "
+        "(classroom size, connectivity, leadership) - so estimates reflect real relationships, "
+        "not memorized district labels.\n"
+        "- With only 30 districts, this model is intentionally simple (regularized linear "
+        "regression) to avoid overfitting a small sample."
+    )
+
+    st.markdown("---")
     st.subheader("Other Known Limitations")
     st.markdown(
         "- Classroom size, shift status, and computer access are **national estimates by school type**, not measurements of individual schools.\n"
@@ -247,7 +453,7 @@ elif page == "Model Performance & Limitations":
     )
 
 # ============================================================
-# PAGE 5: POLICY RECOMMENDATIONS
+# PAGE 6: POLICY RECOMMENDATIONS
 # ============================================================
 else:
     st.title("Policy Recommendations")
@@ -259,7 +465,9 @@ else:
         "Public schools average **64 pupils per classroom** and Government-aided "
         "schools average **58** - both far above Rwanda's national standard of "
         "**46:1**. Reducing classroom overcrowding is likely to have the largest "
-        "measurable effect on primary pass rates of any intervention tested."
+        "measurable effect on primary pass rates of any intervention tested. "
+        "Use the **District Funding Simulator** page to estimate the effect for a "
+        "specific district."
     )
 
     st.markdown("### 2. Ensure Every School Has a Complete Leadership Team")

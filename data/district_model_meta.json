@@ -1,0 +1,53 @@
+{
+  "feature_order": [
+    "avg_classroom_size",
+    "pct_double_shift",
+    "pct_internet",
+    "pct_computer",
+    "avg_leadership_marks",
+    "avg_leader_records",
+    "pct_urban"
+  ],
+  "loocv_r2": 0.399,
+  "loocv_mae": 4.22,
+  "baseline_mae_national_mean": 5.37,
+  "n_districts": 30,
+  "feature_ranges": {
+    "avg_classroom_size": {
+      "min": 52.4,
+      "max": 61.2,
+      "mean": 58.52666666666665
+    },
+    "pct_double_shift": {
+      "min": 9.5,
+      "max": 24.4,
+      "mean": 16.463333333333335
+    },
+    "pct_internet": {
+      "min": 92.8,
+      "max": 100.0,
+      "mean": 98.18
+    },
+    "pct_computer": {
+      "min": 25.9,
+      "max": 46.7,
+      "mean": 33.76333333333333
+    },
+    "avg_leadership_marks": {
+      "min": 67.2,
+      "max": 81.1,
+      "mean": 75.77
+    },
+    "avg_leader_records": {
+      "min": 1.24,
+      "max": 1.75,
+      "mean": 1.4526666666666666
+    },
+    "pct_urban": {
+      "min": 0.0,
+      "max": 93.8,
+      "mean": 14.883333333333335
+    }
+  },
+  "national_avg_pass_rate": 62.4
+}
