@@ -56,7 +56,7 @@ st.sidebar.caption(
 # PAGE 1: OVERVIEW
 # ============================================================
 if page == "Overview":
-    st.title("Primary-Level Student Performance in Rwanda")
+    st.title("Primary-Level School Performance in Rwanda")
     st.markdown("An evidence-based view of what predicts primary pass rates nationally.")
 
     col1, col2, col3, col4 = st.columns(4)
